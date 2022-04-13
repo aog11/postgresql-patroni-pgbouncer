@@ -1,0 +1,121 @@
+---
+- hosts: pgsql
+  gather_facts: no
+  remote_user: dbadmin
+
+  tasks:
+
+  - name: Loading variables
+    include_vars:
+      file: ./variables.yml
+      name: var
+  
+  - name: Obtaining node private IP
+    shell: hostname -I | awk '{print $1}'
+    register: node_ip
+
+  - name: Creating patroni config directory
+    file:
+      path: /etc/patroni/
+      state: directory
+      mode: 0755
+    become: yes
+
+- name: Copying Patroni configuration file to postgres node 1
+  hosts: pgsql_1  
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+  
+  tasks:
+  
+  - name: Copying patroni.yml template file
+    copy:
+      src: ../../files/patroni.yml
+      dest: /etc/patroni/patroni.yml
+
+  - name: Replacing the consul server variable in template file /etc/patroni/patroni.yml 
+    replace:
+      path: /etc/patroni/patroni.yml
+      regexp: 'consul_node_private_ip'
+      replace: "{{ var.pgbouncer_vm1_private_ip }}"    
+
+- name: Copying Patroni configuration file to postgres node 2
+  hosts: pgsql_2  
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+  
+  tasks:
+  
+  - name: Copying patroni.yml template file
+    copy:
+      src: ../../files/patroni.yml
+      dest: /etc/patroni/patroni.yml
+
+  - name: Replacing the consul server variable in template file /etc/patroni/patroni.yml 
+    replace:
+      path: /etc/patroni/patroni.yml
+      regexp: 'consul_node_private_ip'
+      replace: "{{ var.pgbouncer_vm2_private_ip }}"    
+
+- name: Copying Patroni configuration file to postgres node 3
+  hosts: pgsql_3  
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+  
+  tasks:
+  
+  - name: Copying patroni.yml template file
+    copy:
+      src: ../../files/patroni.yml
+      dest: /etc/patroni/patroni.yml
+
+  - name: Replacing the consul server variable in template file /etc/patroni/patroni.yml 
+    replace:
+      path: /etc/patroni/patroni.yml
+      regexp: 'consul_node_private_ip'
+      replace: "{{ var.pgbouncer_vm3_private_ip }}"    
+
+- name: Setup of Patroni
+  hosts: pgsql
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+
+  tasks:
+
+  - name: Installing Patroni package
+    dnf:
+      name: patroni
+      state: latest
+
+  - name: Replacing the servers in template file /etc/patroni/patroni.yml 
+    replace:
+      path: /etc/patroni/patroni.yml
+      regexp: 'pgsql_node_private_ip'
+      replace: "{{ node_ip.stdout }}"    
+  
+  - name: Replacing the servers in template file /etc/patroni/patroni.yml 
+    replace:
+      path: /etc/patroni/patroni.yml
+      regexp: 'pgsql_vm1_private_ip'
+      replace: "{{ var.pgsql_vm1_private_ip }}"
+
+  - name: Replacing the servers in template file /etc/patroni/patroni.yml 
+    replace:
+      path: /etc/patroni/patroni.yml
+      regexp: 'pgsql_vm2_private_ip'
+      replace: "{{ var.pgsql_vm2_private_ip }}"
+
+  - name: Replacing the servers in template file /etc/patroni/patroni.yml 
+    replace:
+      path: /etc/patroni/patroni.yml
+      regexp: 'pgsql_vm3_private_ip'
+      replace: "{{ var.pgsql_vm3_private_ip }}"
+
+  - name: Startup Patroni
+    systemd:
+      name:  patroni
+      state: restarted

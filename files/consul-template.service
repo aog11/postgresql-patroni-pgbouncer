@@ -1,0 +1,15 @@
+[Unit]
+Description=consul-template service
+Requires=network-online.target
+After=network-online.target consul.service
+
+[Service]
+EnvironmentFile=-/etc/sysconfig/consul-template
+Restart=on-failure
+ExecStart=/usr/local/bin/consul-template $OPTIONS -config=/etc/consul-template/conf.d
+Restart=always
+RestartSec=10s
+LimitNOFILE=40000
+
+[Install]
+WantedBy=multi-user.target

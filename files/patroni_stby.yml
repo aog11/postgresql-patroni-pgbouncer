@@ -1,0 +1,67 @@
+scope: pgsql_consul_stby
+namespace: /db_stby/
+name: pgsql_stby_pgsql_node_private_ip
+
+restapi:
+    listen: pgsql_node_private_ip:8008
+    connect_address: pgsql_node_private_ip:8008
+
+consul:
+    host: pgsql_node_private_ip:8500
+
+bootstrap:
+    dcs:
+        ttl: 30
+        loop_wait: 10
+        retry_timeout: 10
+        maximum_lag_on_failover: 1048576
+        postgresql:
+            use_pg_rewind: true
+            parameters:
+              max_connections: 150
+        
+        standby_cluster:
+            host: pgsql_vm1_private_ip
+            port: 5432
+
+    initdb:
+    - encoding: UTF8
+    - data-checksums
+
+    pg_hba:
+    - host replication replicator 127.0.0.1/32 md5
+    - host replication replicator pgsql_vm1_private_ip/0 md5
+    - host replication replicator pgsql_vm2_private_ip/0 md5
+    - host replication replicator pgsql_vm3_private_ip/0 md5
+    - host replication replicator pgsql_vm_stby1_private_ip/0 md5
+    - host replication replicator pgsql_vm_stby2_private_ip/0 md5
+    - host all all 0.0.0.0/0 md5
+
+    users:
+        admin:
+            password: admin
+            options:
+                - createrole
+                - createdb
+
+postgresql:
+    listen: pgsql_node_private_ip:5432
+    connect_address: pgsql_node_private_ip:5432
+    data_dir: /var/lib/pgsql/13/data/
+    bin_dir: /usr/pgsql-13/bin/
+    pgpass: /var/lib/pgsql/13/pgpass
+    authentication:
+        replication:
+            username: replicator
+            password: password
+        superuser:
+            username: postgres
+            password: password
+    parameters:
+        unix_socket_directories: '.'
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false

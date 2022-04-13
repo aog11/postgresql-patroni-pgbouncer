@@ -1,0 +1,17 @@
+#Restart cluster (scope in patroni.yml)
+patronictl -c /etc/patroni/patroni.yml restart postgres
+
+#Restart node
+patronictl -c /etc/patroni/patroni.yml restart [cluster] [node]
+
+#Edit patroni config
+patronictl -c /etc/patroni/patroni.yml edit-config
+
+#Show patroni config
+patronictl -c /etc/patroni/patroni.yml show-config postgres
+
+#Show cluster
+patronictl -c /etc/patroni/patroni.yml list postgres
+
+#Remove cluster from DCS
+patronictl -c /etc/patroni/patroni.yml remove postgres

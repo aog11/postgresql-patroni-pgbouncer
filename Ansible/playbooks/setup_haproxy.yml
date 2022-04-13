@@ -1,0 +1,62 @@
+---
+- hosts: haproxy
+  gather_facts: no
+  remote_user: dbadmin
+
+  tasks:
+
+  - name: Loading variables
+    include_vars:
+      file: ./variables.yml
+      name: var
+  
+  - name: Obtaining node private IP
+    shell: hostname -I | awk '{print $1}'
+    register: node_ip
+
+- name: Setup of HAProxy
+  hosts: haproxy
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+
+  tasks:
+
+    - name: Setting SELinux in Permissive mode
+      selinux:
+        policy: targeted
+        state: permissive
+    
+    - name: Installing HAProxy package
+      dnf:
+        name: haproxy
+        state: latest
+
+    - name: Copying haproxy.cfg
+      copy:
+        src: ../../files/haproxy.cfg
+        dest: /etc/haproxy/haproxy.cfg
+        mode: 0644
+
+    - name: Replacing the servers in template file haproxy.cfg
+      replace:
+        path: /etc/haproxy/haproxy.cfg
+        regexp: 'pgbouncer_vm1_private_ip'
+        replace: "{{ var.pgbouncer_vm1_private_ip }}"
+
+    - name: Replacing the servers in template file haproxy.cfg 
+      replace:
+        path: /etc/haproxy/haproxy.cfg
+        regexp: 'pgbouncer_vm2_private_ip'
+        replace: "{{ var.pgbouncer_vm2_private_ip }}"
+
+    - name: Replacing the servers in template file haproxy.cfg 
+      replace:
+        path: /etc/haproxy/haproxy.cfg
+        regexp: 'pgbouncer_vm3_private_ip'
+        replace: "{{ var.pgbouncer_vm3_private_ip }}"
+
+    - name: Restarting HAProxy service
+      systemd:
+        name: haproxy
+        state: restarted

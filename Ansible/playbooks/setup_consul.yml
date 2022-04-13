@@ -1,0 +1,70 @@
+---
+- hosts: pgbouncer
+  gather_facts: no
+  remote_user: dbadmin
+
+  tasks:
+
+  - name: Loading variables
+    include_vars:
+      file: ./variables.yml
+      name: var
+  
+  - name: Obtaining node private IP
+    shell: hostname -I | awk '{print $1}'
+    register: node_ip
+
+- name: Setup of consul
+  hosts: pgbouncer
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+
+  tasks:
+
+    - name: Installing yum-config-manager
+      yum:
+        name: yum-utils
+        state: latest
+
+    - name: Clearing /etc/yum.repos.d/hashicorp.repo
+      file:
+        path: /etc/yum.repos.d/hashicorp.repo
+        state: absent
+    
+    - name: Adding HashiCorp Linux repository
+      command: yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+
+    - name: Installing Consul
+      dnf:
+        name: consul
+        state: latest
+
+    - name: Installing unzip
+      dnf:
+        name: unzip
+        state: latest
+
+    - name: Copying consul-config.json to /etc/consul.d/config.json
+      copy:
+        src: ../../files/consul-config.json
+        dest: /etc/consul.d/config.json
+        mode: 0644
+
+    - name: Replacing the servers in template file /etc/consul.d/config.json
+      replace:
+        path: /etc/consul.d/config.json
+        regexp: 'pgsql_node_private_ip'
+        replace: "{{ node_ip.stdout }}"
+
+    - name: Downloading consul-template binary
+      unarchive: 
+        src: https://releases.hashicorp.com/consul-template/0.28.1/consul-template_0.28.1_linux_amd64.zip
+        dest: /usr/local/bin
+        remote_src: yes
+        mode: 0755
+    
+    - name: Restarting Consul service
+      systemd:
+        name: consul
+        state: restarted

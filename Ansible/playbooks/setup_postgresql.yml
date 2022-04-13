@@ -1,0 +1,82 @@
+---
+- hosts: pgsql
+  gather_facts: no
+  remote_user: dbadmin
+
+  tasks:
+
+  - name: Loading variables
+    include_vars:
+      file: ./variables.yml
+      name: var
+  
+  - name: Obtaining node private IP
+    shell: hostname -I | awk '{print $1}'
+    register: node_ip
+
+- name: Setup of PostgreSQL
+  hosts: pgsql
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+
+  tasks:
+
+    - name: Partitioninig the attached disk
+      parted:
+        device: /dev/sdb
+        number: 1
+        state: present
+
+    - name: Formatting the attached disk
+      filesystem:
+        fstype: xfs
+        dev: /dev/sdb1
+
+    - name: Creating the postgres data directory
+      file: 
+        path: /var/lib/pgsql/13/
+        state: directory
+        mode: 0755
+
+    - name: Mounting the disk
+      mount:
+        fstype: xfs
+        src: /dev/sdb1
+        path: /var/lib/pgsql/13/
+        state: mounted
+
+    - name: Installing PostgreSQL repository RPM
+      dnf:
+        name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+        state: latest
+        disable_gpg_check: yes
+
+    - name: Disabling default postgresql repo
+      shell: dnf -qy module disable postgresql
+
+    - name: Installing postgresql13-server package
+      dnf: 
+        name: postgresql13-server
+        state: latest
+    
+    #Only run during first time setup
+    - name: Deleting default PostgreSQL-13 folders
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/pgsql/13/data/
+        - /var/lib/pgsql/13/backups/
+
+    - name: Installing prerequisites for patroni[consul]
+      dnf:
+        name:
+          - gcc
+          - python3-devel
+    
+    - name: Installing pip modules for Patroni
+      pip:
+        name: 
+          - urllib3
+          - patroni[consul]  

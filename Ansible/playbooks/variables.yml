@@ -1,0 +1,6 @@
+pgsql_vm1_private_ip: 172.21.0.3
+pgsql_vm2_private_ip: 172.21.0.7
+pgsql_vm3_private_ip: 172.21.0.5
+pgbouncer_vm1_private_ip: 172.21.0.4
+pgbouncer_vm2_private_ip: 172.21.0.6
+pgbouncer_vm3_private_ip: 172.21.0.2

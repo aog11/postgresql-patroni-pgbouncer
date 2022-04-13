@@ -1,0 +1,19 @@
+---
+- hosts: all
+  gather_facts: no
+  remote_user: dbadmin
+
+- name: Setup of Consul
+  import_playbook: ./playbooks/setup_consul.yml        
+
+- name: Setup of PostgreSQL
+  import_playbook: ./playbooks/setup_postgresql.yml
+
+- name: Setup of Patroni
+  import_playbook: ./playbooks/setup_patroni.yml
+
+- name: Setup of PgBouncer
+  import_playbook: ./playbooks/setup_pgbouncer.yml
+
+- name: Setup of HAProxy
+  import_playbook: ./playbooks/setup_haproxy.yml

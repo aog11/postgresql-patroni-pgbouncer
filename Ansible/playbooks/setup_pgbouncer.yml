@@ -1,0 +1,105 @@
+---
+- hosts: pgbouncer
+  gather_facts: no
+  remote_user: dbadmin
+
+  tasks:
+
+  - name: Loading variables
+    include_vars:
+      file: ./variables.yml
+      name: var
+  
+  - name: Obtaining node private IP
+    shell: hostname -I | awk '{print $1}'
+    register: node_ip
+
+- name: Setup of PgBouncer
+  hosts: pgbouncer
+  gather_facts: no
+  remote_user: dbadmin
+  become: yes
+
+  tasks:
+
+    - name: Installing PostgreSQL repository RPM
+      dnf:
+        name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+        state: latest
+        disable_gpg_check: yes
+
+    - name: Disabling default postgresql repo
+      shell: dnf -qy module disable postgresql
+
+    - name: Installing PgBouncer and postgresql13 packages
+      dnf: 
+        name: 
+        - pgbouncer
+        - postgresql13
+        state: latest
+    
+    - name: Obtaining the current leader node
+      command: consul kv get db/pgsql_consul/leader
+      register: leader_node
+    
+    - name: Copying pgbouncer template file
+      copy:
+        src: ../../files/pgbouncer.ini
+        dest: /etc/pgbouncer/pgbouncer.ini
+        mode: 0644
+
+    - name: Replacing placehoder value of db host
+      replace:
+        path: /etc/pgbouncer/pgbouncer.ini
+        regexp: 'pgsql_leader_node'
+        replace: "{{ leader_node.stdout }}"     
+
+    - name: Populating /etc/pgbouncer/userlist.txt
+      shell: | 
+        export PGPASSWORD=password
+        psql -Atq -U postgres -d postgres -c "SELECT concat('\"', usename, '\" \"', passwd, '\"') FROM pg_shadow" -h {{ leader_node.stdout }} > /etc/pgbouncer/userlist.txt     
+    
+    - name: Creating consul-template directories
+      file:
+        path: /etc/consul-template/{{item}}/
+        state: directory
+        mode: 0755
+      loop:
+        - conf.d
+        - templates
+
+    - name: Copying pgbouncer template file for consul-template
+      copy:
+        src: ../../files/pgbouncer.ini.tmpl
+        dest: /etc/consul-template/templates/pgbouncer.ini.tmpl
+        mode: 0644
+
+    - name: Copying pgbouncer.conf for consul-template
+      copy:
+        src: ../../files/reconfig-pgbouncer.conf
+        dest: /etc/consul-template/conf.d/pgbouncer.conf
+        mode: 0644
+    
+    - name: Copying consul-template service file
+      copy:
+        src: ../../files/consul-template.service
+        dest: /etc/systemd/system/consul-template.service
+        mode: 0644
+    
+    - name: Starting consul-template service
+      systemd:
+        daemon_reload: yes
+        state: restarted
+        name: consul-template
+
+    - name: Create pg_hba.conf file for PgBouncer
+      copy:
+        dest: /etc/pgbouncer/pg_hba.conf
+        content: |
+          host all all 0.0.0.0/0 md5
+        mode: 0644
+    
+    - name: Starting PgBouncer service
+      systemd:
+        name: pgbouncer
+        state: restarted

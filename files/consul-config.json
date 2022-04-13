@@ -1,0 +1,28 @@
+{
+    "advertise_addr": "pgsql_node_private_ip",
+    "bind_addr": "pgsql_node_private_ip",
+    "bootstrap_expect": 3,
+    "client_addr": "0.0.0.0",
+    "domain": "consul",
+    "enable_script_checks": true,
+    "dns_config": {
+        "enable_truncate": true,
+        "only_passing": true
+    },
+    "enable_syslog": true,
+    "leave_on_terminate": true,
+    "log_level": "INFO",
+    "rejoin_after_leave": true,
+    "retry_join": [
+       "pgbouncer-vm1",
+       "pgbouncer-vm2",
+       "pgbouncer-vm3"
+    ],
+    "server": true,
+    "start_join": [
+        "pgbouncer-vm1",
+        "pgbouncer-vm2",
+        "pgbouncer-vm3"
+     ],
+    "ui": true
+}
